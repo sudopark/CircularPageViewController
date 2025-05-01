@@ -1,0 +1,44 @@
+
+# Xcode
+.DS_Store
+DerivedData/
+xcuserdata/
+*.xcworkspace
+*.pbxuser
+*.mode1v3
+*.perspectivev3
+*.xcuserstate
+project.xcworkspace/
+build/
+
+# Swift Package Manager
+.build/
+Packages/
+Package.resolved
+
+# iOS, macOS specific (Sample App)
+SampleApp/*.ipa
+SampleApp/*.pkg
+SampleApp/build/
+SampleApp/DerivedData/
+
+# General
+*.swiftdeps
+*.swiftdmodule
+.swiftpm/
+*.log
+
+# OS generated files
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Folder backups
+*.swp
+*.swo
+.DS_Store?
+
+# Distribution files
+*.dSYM
