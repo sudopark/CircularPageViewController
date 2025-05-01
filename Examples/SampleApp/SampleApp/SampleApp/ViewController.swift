@@ -8,8 +8,9 @@
 import UIKit
 import CircularPageViewController
 
-class ViewController: UIViewController {
+class ViewController: UIViewController, CircularPageViewControllerDelegate {
     
+    private let stackView = UIStackView()
     private let label = UILabel()
     private let containerView = UIView()
     private let pageViewController = CircularPageViewController()
@@ -20,9 +21,7 @@ class ViewController: UIViewController {
         self.view.backgroundColor = .white
         self.setupViews()
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.setupChilds()
-        }
+        self.setupChilds()
     }
     
     private func setupChilds() {
@@ -30,14 +29,18 @@ class ViewController: UIViewController {
         let childs = (0..<10).map { int in
             return ChildViewController(index: int)
         }
-        self.pageViewController.updateChilds(childs, withSelect: 1)
+        self.pageViewController.updatePages(childs, withSelect: 1)
+        self.label.text = "selected:1"
     }
     
     private func setupViews() {
+        
+        self.setupButtons()
+        
         self.view.addSubview(label)
         label.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            label.topAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            label.topAnchor.constraint(equalTo: stackView.bottomAnchor, constant: 10),
             label.centerXAnchor.constraint(equalTo: self.view.centerXAnchor)
         ])
         label.textColor = .black
@@ -60,6 +63,49 @@ class ViewController: UIViewController {
             pageViewController.view.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
             pageViewController.view.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
         ])
+        pageViewController.didMove(toParent: self)
+        pageViewController.delegate = self
+    }
+    
+    private func setupButtons() {
+        self.view.addSubview(stackView)
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            stackView.topAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            stackView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: 20),
+            stackView.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -20)
+        ])
+        stackView.axis = .horizontal
+        stackView.distribution = .fillEqually
+        
+        (0..<10).forEach { int in
+            let button = UIButton(type: .system)
+            button.tag = int
+            button.setTitle("p:\(int)", for: .normal)
+            self.stackView.addArrangedSubview(button)
+            button.addTarget(self, action: #selector(self.handleButtonTap(_:)), for: .touchUpInside)
+        }
+    }
+    
+    @objc func handleButtonTap(_ button: UIButton) {
+        let index = button.tag
+        self.pageViewController.selecPage(at: index)
+        self.label.text = "selected:\(index)"
+    }
+    
+    func circularPageViewController(
+        _ pageViewController: CircularPageViewController,
+        willTransitionTo viewController: UIViewController, at index: Int
+    ) {
+        print("will change to: \(index)")
+    }
+    
+    func circularPageViewController(
+        _ pageViewController: CircularPageViewController,
+        didFinishTransitionTo viewController: UIViewController, at index: Int
+    ) {
+        print("did change to: \(index)")
+        self.label.text = "selected:\(index)"
     }
 }
 
