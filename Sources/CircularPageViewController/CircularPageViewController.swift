@@ -27,7 +27,11 @@ open class CircularPageViewController: UIViewController {
     
     private var viewControllers: [UIViewController] = []
     private var currentIndex: Int?
-    private var visibleViewControllers: [UIViewController] = []
+    private var visibleViewControllers: [UIViewController] = [] {
+        didSet {
+            print("update visible: \(visibleViewControllers.count)")
+        }
+    }
     private var currentViewController: UIViewController? {
         return self.currentIndex.flatMap { self.viewControllers[safe: $0] }
     }
@@ -38,8 +42,8 @@ open class CircularPageViewController: UIViewController {
     
     private var lastScrollViewSize: CGSize?
     
-    private var scrollStartOffsetX: CGFloat?
-    private var pendingAppearChild: UIViewController?
+    private var isDragging: Bool = false
+    private var pendingAppearPageIndex: Int?
     
     open override var shouldAutomaticallyForwardAppearanceMethods: Bool { false }
 
@@ -156,49 +160,66 @@ extension CircularPageViewController {
 extension CircularPageViewController: UIScrollViewDelegate {
     
     public func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
-        self.scrollStartOffsetX = scrollView.contentOffset.x
+        self.isDragging = true
     }
     
     public func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        guard let start = self.scrollStartOffsetX else { return }
-        self.scrollStartOffsetX = nil
         
-        if scrollView.contentOffset.x > start, let (index, next) = self.prepareWillShowNext() {
+        guard self.isDragging,
+              let currentIndex = self.currentIndex,
+              let newCurrentIndex = self.findWillScrollFocusIndex(currentIndex),
+            self.pendingAppearPageIndex != newCurrentIndex
+        else { return }
+        
+        print("pending: \(pendingAppearPageIndex), new: \(newCurrentIndex), offset: \(self.scrollView.contentOffset.x), width: \(self.scrollView.bounds.width)")
+        
+        func handleWillShow(_ pair: (Int, UIViewController)?) {
+            guard let (index, next) = pair else { return }
             
+            // cancel previous pending vc appearing
+            let pending = self.pendingAppearPageIndex.flatMap { self.viewControllers[safe: $0] }
+            pending?.beginAppearanceTransition(false, animated: false)
+            
+            // notify will move to next or previous
             self.delegate?.circularPageViewController(self, willTransitionTo: next, at: index)
             self.currentViewController?.beginAppearanceTransition(false, animated: false)
-            self.pendingAppearChild = next
-            
-        } else if let (index, previous) = self.preapreWillShowPrevious() {
-            
-            self.delegate?.circularPageViewController(self, willTransitionTo: previous, at: index)
-            self.currentViewController?.beginAppearanceTransition(false, animated: false)
-            self.pendingAppearChild = previous
+            self.pendingAppearPageIndex = index
+        }
+        
+        if self.viewControllers.isMoveToNext(currentIndex, newCurrentIndex) {
+            handleWillShow(self.prepareWillShowNext())
+        } else {
+            handleWillShow(self.prepareeWillShowPrevious())
         }
     }
     
     public func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        defer { self.isDragging = false }
         guard !decelerate else { return }
         self.handleScrollEnd()
     }
     
     public func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
         self.handleScrollEnd()
+        self.isDragging = false
     }
     
     private func handleScrollEnd() {
+        defer { self.pendingAppearPageIndex = nil }
         guard let previousCurrentIndex = self.currentIndex,
               let currentPageIndex = self.findCurrentScrollFocusIndex(),
               let current = self.viewControllers[safe: currentPageIndex]
         else { return }
+        
+        print("did, prev: \(previousCurrentIndex) -> \(currentPageIndex)")
         
         guard previousCurrentIndex != currentPageIndex
         else {
             self.currentViewController?.beginAppearanceTransition(true, animated: false)
             self.currentViewController?.endAppearanceTransition()
             
-            self.pendingAppearChild?.beginAppearanceTransition(false, animated: false)
-            self.pendingAppearChild?.endAppearanceTransition()
+            let pending = self.pendingAppearPageIndex.flatMap { self.viewControllers[safe: $0] }
+            pending?.endAppearanceTransition()
             return
         }
 
@@ -243,7 +264,7 @@ extension CircularPageViewController: UIScrollViewDelegate {
         return (nextIndex, next)
     }
     
-    private func preapreWillShowPrevious() -> (Int, UIViewController)? {
+    private func prepareeWillShowPrevious() -> (Int, UIViewController)? {
         guard let currentIndex = self.currentIndex,
               let previousIndex = self.viewControllers.previousIndex(at: currentIndex)
         else { return nil }
@@ -263,10 +284,31 @@ extension CircularPageViewController: UIScrollViewDelegate {
         return (previousIndex, previous)
     }
     
+    private func findWillScrollFocusIndex(_ currentIndex: Int) -> Int? {
+        let width = self.scrollView.bounds.width
+        let offset = self.scrollView.contentOffset.x + self.scrollView.contentInset.left
+        let visibleIndex = Int(round(offset / width))
+        if offset < 0 {
+            return self.viewControllers.previousIndex(at: currentIndex)
+        } else if offset > self.scrollView.contentSize.width {
+            return self.viewControllers.nextIndex(at: currentIndex)
+        } else {
+            return self.visibleViewControllers[safe: visibleIndex]
+                .flatMap { self.viewControllers.firstIndex(of: $0) }
+        }
+    }
+    
     private func findCurrentScrollFocusIndex() -> Int? {
         let width = self.scrollView.bounds.width
-        let index = max(0, Int(round(self.scrollView.contentOffset.x / width)))
-        return self.visibleViewControllers[safe: index]
+        let offset = self.scrollView.contentOffset.x
+        let totalScrollablePageWidth = self.scrollView.contentInset.left + self.scrollView.contentSize.width
+        let totalScrollablePageCount = Int(round(totalScrollablePageWidth / width)) + 1
+        let visibleIndex = if visibleViewControllers.count < totalScrollablePageCount {
+            max(0, Int(round(offset / width)) - 1)
+        } else {
+            max(0, Int(round(offset / width)))
+        }
+        return self.visibleViewControllers[safe: visibleIndex]
             .flatMap { self.viewControllers.firstIndex(of: $0) }
     }
 }

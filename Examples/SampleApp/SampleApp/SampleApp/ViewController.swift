@@ -111,7 +111,7 @@ class ViewController: UIViewController, CircularPageViewControllerDelegate {
 
 final class ChildViewController: UIViewController {
     
-    private let label = UILabel()
+    private let indexLabel = UILabel()
     private let index: Int
     
     init(index: Int) {
@@ -127,14 +127,16 @@ final class ChildViewController: UIViewController {
         super.viewDidLoad()
         print("     \(#function) - \(index)")
         
-        self.view.addSubview(label)
-        label.translatesAutoresizingMaskIntoConstraints = false
+        let colors: [UIColor] = [.blue, .green, .yellow, .orange, .purple, .red]
+        self.view.backgroundColor = colors[self.index % colors.count]
+        self.view.addSubview(indexLabel)
+        indexLabel.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            label.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
-            label.centerYAnchor.constraint(equalTo: self.view.centerYAnchor)
+            indexLabel.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
+            indexLabel.centerYAnchor.constraint(equalTo: self.view.centerYAnchor)
         ])
-        label.textColor = .black
-        label.text = "\(index)"
+        indexLabel.textColor = .black
+        indexLabel.text = "\(index)"
     }
     
     override func viewWillAppear(_ animated: Bool) {
