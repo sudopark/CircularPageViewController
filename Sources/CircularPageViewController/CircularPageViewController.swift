@@ -177,8 +177,16 @@ extension CircularPageViewController: UIScrollViewDelegate {
         }
     }
     
+    public func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        guard !decelerate else { return }
+        self.handleScrollEnd()
+    }
+    
     public func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-        
+        self.handleScrollEnd()
+    }
+    
+    private func handleScrollEnd() {
         guard let previousCurrentIndex = self.currentIndex,
               let currentPageIndex = self.findCurrentScrollFocusIndex(),
               let current = self.viewControllers[safe: currentPageIndex]
